@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      user-select: none;
+      transition: background 0.8s ease;
+    }
+
+    body.map-mese {
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(34,139,34,0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(0,100,0,0.3) 0%, transparent 50%),
+        #0a1a0a;
+    }
+    body.map-gece {
+      background:
+        radial-gradient(ellipse at 20% 30%, rgba(100,0,200,0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(0,80,180,0.3) 0%, transparent 50%),
+        #050510;
+    }
+    body.map-okean {
+      background:
+        radial-gradient(ellipse at 40% 20%, rgba(0,180,220,0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 60% 80%, rgba(0,100,180,0.3) 0%, transparent 50%),
+        #000a1e;
+    }
+    body.map-default { background: #0a0a0f; }
+
+    .deco-layer {
+      position: fixed; inset: 0;
+      pointer-events: none; overflow: hidden; z-index: 0;
+    }
+
+    .deco-item {
+      position: absolute;
+      font-size: 1.4rem;
+      opacity: 0.12;
+      animation: floatDeco linear infinite;
+    }
+
+    @keyframes floatDeco {
+      0%   { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+      10%  { opacity: 0.12; }
+      90%  { opacity: 0.12; }
+      100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+    }
+
+    /* ========== MENU ========== */
+    #menu {
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+      position: relative; z-index: 10;
+      padding: 20px 16px;
+      max-height: 100vh;
+      overflow-y: auto;
+    }
+
+    #menu h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1.6rem, 5vw, 2.8rem);
+      letter-spacing: 8px;
+      margin-bottom: 6px;
+      background: linear-gradient(90deg, #00ff64, #00cfff, #ff4466);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 20px rgba(0,255,100,0.5));
+    }
+
+    #menu p.subtitle {
+      color: rgba(255,255,255,0.3);
+      font-size: 0.58rem;
+      letter-spacing: 4px;
+      margin-bottom: 24px;
+    }
+
+    .bolum-baslik {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    /* XƏRİTƏLƏR */
+    .xerite-grid {
+      display: flex; gap: 14px;
+      justify-content: center; flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .xerite-kart {
+      width: 125px; padding: 16px 12px;
+      border-radius: 14px; cursor: pointer;
+      transition: all 0.3s ease; position: relative;
+      border: 2px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .xerite-kart:hover { transform: translateY(-4px); }
+    .xerite-kart.secili { transform: translateY(-5px) scale(1.04); }
+
+    .xk-mese  { border-color: rgba(34,200,34,0.35); }
+    .xk-gece  { border-color: rgba(150,80,255,0.35); }
+    .xk-okean { border-color: rgba(0,180,220,0.35); }
+
+    .xk-mese.secili,  .xk-mese:hover  { border-color:#22cc22; box-shadow:0 0 20px rgba(34,200,34,0.4); background:rgba(34,200,34,0.07); }
+    .xk-gece.secili,  .xk-gece:hover  { border-color:#a855f7; box-shadow:0 0 20px rgba(150,80,255,0.4); background:rgba(150,80,255,0.07); }
+    .xk-okean.secili, .xk-okean:hover { border-color:#00b4dc; box-shadow:0 0 20px rgba(0,180,220,0.4); background:rgba(0,180,220,0.07); }
+
+    .secili-badge {
+      position: absolute; top:-7px; right:-7px;
+      background:#00ff64; color:#000;
+      font-family:'Press Start 2P',monospace; font-size:0.3rem;
+      padding:3px 5px; border-radius:4px; display:none;
+    }
+    .secili .secili-badge { display:block; }
+
+    .xerite-emoji { font-size:2rem; display:block; margin-bottom:7px; }
+    .xerite-ad { font-family:'Press Start 2P',monospace; font-size:0.45rem; letter-spacing:1px; margin-bottom:5px; }
+    .xk-mese  .xerite-ad { color:#22cc22; }
+    .xk-gece  .xerite-ad { color:#a855f7; }
+    .xk-okean .xerite-ad { color:#00b4dc; }
+    .xerite-info { font-size:0.45rem; color:rgba(255,255,255,0.35); line-height:1.5; }
+
+    /* KARAKTERLƏR */
+    .karakter-grid {
+      display:flex; gap:14px;
+      justify-content:center; flex-wrap:wrap;
+    }
+
+    .karakter-kart {
+      width:145px; padding:20px 14px;
+      border-radius:14px; cursor:pointer;
+      transition:all 0.3s ease; position:relative;
+    }
+
+    .karakter-kart:hover { transform:translateY(-6px) scale(1.03); }
+
+    .hayyim  { background:rgba(0,255,100,0.05);  border:2px solid rgba(0,255,100,0.3); }
+    .aymin   { background:rgba(0,150,255,0.05);  border:2px solid rgba(0,150,255,0.3); }
+    .jawhead { background:rgba(255,50,80,0.05);   border:2px solid rgba(255,50,80,0.3); }
+
+    .hayyim:hover  { border-color:#00ff64; box-shadow:0 0 25px rgba(0,255,100,0.3); }
+    .aymin:hover   { border-color:#00cfff; box-shadow:0 0 25px rgba(0,150,255,0.3); }
+    .jawhead:hover { border-color:#ff4466; box-shadow:0 0 25px rgba(255,50,80,0.3); }
+
+    .karakter-emoji { font-size:2.3rem; margin-bottom:9px; display:block; }
+    .karakter-ad { font-family:'Press Start 2P',monospace; font-size:0.55rem; letter-spacing:2px; margin-bottom:7px; }
+    .hayyim .karakter-ad  { color:#00ff64; }
+    .aymin .karakter-ad   { color:#00cfff; }
+    .jawhead .karakter-ad { color:#ff4466; }
+    .karakter-info { font-size:0.5rem; color:rgba(255,255,255,0.4); line-height:1.6; }
+
+    .speed-bar { margin-top:9px; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; }
+    .speed-fill { height:100%; border-radius:2px; }
+    .hayyim .speed-fill  { background:#00ff64; width:35%; }
+    .aymin .speed-fill   { background:#00cfff; width:60%; }
+    .jawhead .speed-fill { background:#ff4466; width:82%; }
+    .speed-label { font-size:0.42rem; color:rgba(255,255,255,0.2); margin-top:4px; }
+
+    /* ========== OYUN ========== */
+    #oyun-ekrani {
+      display:none; flex-direction:column;
+      align-items:center; gap:10px;
+      animation:fadeIn 0.3s ease;
+      position:relative; z-index:10;
+    }
+
+    .oyun-header {
+      display:flex; justify-content:space-between;
+      align-items:center; width:min(440px,96vw);
+    }
+
+    .oyuncu-adi { font-family:'Press Start 2P',monospace; font-size:0.6rem; letter-spacing:2px; }
+    .xal-goster { font-family:'Press Start 2P',monospace; font-size:0.8rem; }
+
+    .level-bar-wrap {
+      width:min(440px,96vw); display:flex;
+      align-items:center; gap:9px;
+    }
+
+    .level-badge {
+      font-family:'Press Start 2P',monospace; font-size:0.48rem;
+      padding:3px 7px; border-radius:4px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.1);
+      white-space:nowrap; min-width:54px; text-align:center;
+    }
+
+    .level-progress-bg {
+      flex:1; height:5px;
+      background:rgba(255,255,255,0.08);
+      border-radius:3px; overflow:hidden;
+    }
+
+    .level-progress-fill {
+      height:100%; border-radius:3px;
+      transition:width 0.3s ease; width:0%;
+    }
+
+    .level-xal-text { font-size:0.45rem; color:rgba(255,255,255,0.22); white-space:nowrap; min-width:48px; text-align:right; }
+
+    .canvas-wrap {
+      position:relative; border-radius:10px;
+      overflow:hidden; max-width:96vw;
+      border:2px solid rgba(255,255,255,0.06);
+    }
+
+    canvas { display:block; max-width:96vw; touch-action:none; }
+    #canvas { position:relative; z-index:2; }
+    #canvas-bg { position:absolute; top:0; left:0; z-index:1; }
+
+    .kontrol-ipucu { font-size:0.45rem; color:rgba(255,255,255,0.12); letter-spacing:3px; }
+
+    .mobil-kontrol { display:none; flex-direction:column; align-items:center; gap:4px; margin-top:4px; }
+    .mobil-row { display:flex; gap:4px; }
+
+    .mobil-btn {
+      width:52px; height:52px;
+      background:rgba(255,255,255,0.06);
+      border:1.5px solid rgba(255,255,255,0.1);
+      border-radius:10px; font-size:1.1rem;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      transition:all 0.1s; -webkit-tap-highlight-color:transparent;
+    }
+    .mobil-btn:active { background:rgba(255,255,255,0.18); transform:scale(0.9); }
+
+    @media (max-width:600px) {
+      .mobil-kontrol { display:flex; }
+      .kontrol-ipucu { display:none; }
+    }
+
+    /* LEVEL UP */
+    #level-up-overlay {
+      display:none; position:fixed; inset:0;
+      justify-content:center; align-items:center;
+      pointer-events:none; z-index:50;
+    }
+
+    .level-up-text {
+      font-family:'Press Start 2P',monospace;
+      font-size:clamp(1rem,4vw,1.8rem);
+      letter-spacing:4px;
+      animation:levelUpAnim 1.5s ease forwards;
+      text-align:center;
+    }
+
+    @keyframes levelUpAnim {
+      0%   { opacity:0; transform:scale(0.5) translateY(20px); }
+      20%  { opacity:1; transform:scale(1.1) translateY(0); }
+      70%  { opacity:1; transform:scale(1); }
+      100% { opacity:0; transform:scale(0.9) translateY(-30px); }
+    }
+
+    /* OYUN BİTDİ */
+    #oyun-bitti {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,0.88);
+      backdrop-filter:blur(10px);
+      justify-content:center; align-items:center;
+      flex-direction:column; gap:13px;
+      animation:fadeIn 0.3s ease; z-index:100; padding:20px;
+    }
+
+    #oyun-bitti h2 {
+      font-family:'Press Start 2P',monospace;
+      font-size:clamp(1.1rem,5vw,1.8rem);
+      color:#ff4466;
+      filter:drop-shadow(0 0 20px #ff4466);
+      letter-spacing:4px;
+    }
+
+    .son-xal  { font-family:'Press Start 2P',monospace; font-size:0.85rem; }
+    .final-level { font-family:'Press Start 2P',monospace; font-size:0.55rem; color:rgba(255,255,255,0.45); letter-spacing:2px; }
+
+    .btn {
+      font-family:'Press Start 2P',monospace; font-size:0.55rem;
+      padding:12px 20px; border:none; border-radius:8px;
+      cursor:pointer; letter-spacing:2px;
+      transition:all 0.2s; text-transform:uppercase;
+    }
+    .btn:hover { transform:scale(1.05); filter:brightness(1.2); }
+    .btn-yeniden { background:#00ff64; color:#000; }
+    .btn-menu { background:transparent; border:2px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.5); }
+    .btn-menu:hover { border-color:#fff; color:#fff; }
+
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(10px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+  </style>
+</head>
+<body class="map-mese">
+
+<div class="deco-layer" id="deco-layer"></div>
+
+<!-- ========== MENU ========== -->
+<div id="menu">
+  <h1>SNAKE</h1>
+  <p class="subtitle">Xəritə seç · Karakter seç · Qazan</p>
+
+  <div class="bolum-baslik">🗺 XƏRİTƏ SEÇ</div>
+  <div class="xerite-grid">
+    <div class="xerite-kart xk-mese secili" onclick="xeriteSecim('mese',this)">
+      <span class="secili-badge">✓</span>
+      <span class="xerite-emoji">🌲</span>
+      <div class="xerite-ad">MEŞƏ</div>
+      <div class="xerite-info">Yaşıl meşə.<br>Sakit atmosfer.</div>
+    </div>
+    <div class="xerite-kart xk-gece" onclick="xeriteSecim('gece',this)">
+      <span class="secili-badge">✓</span>
+      <span class="xerite-emoji">🌙</span>
+      <div class="xerite-ad">GECƏ BAĞÇASI</div>
+      <div class="xerite-info">Mistik gecə.<br>Ulduzlu göy.</div>
+    </div>
+    <div class="xerite-kart xk-okean" onclick="xeriteSecim('okean',this)">
+      <span class="secili-badge">✓</span>
+      <span class="xerite-emoji">🌊</span>
+      <div class="xerite-ad">OKEAN DİBİ</div>
+      <div class="xerite-info">Dərin okean.<br>Su altı dünyası.</div>
+    </div>
+  </div>
+
+  <div class="bolum-baslik">🎮 KARAKTER SEÇ</div>
+  <div class="karakter-grid">
+    <div class="karakter-kart hayyim" onclick="oyunuBaslat('HAYYIM','#00ff64',240)">
+      <span class="karakter-emoji">🐍</span>
+      <div class="karakter-ad">HAYYIM</div>
+      <div class="karakter-info">Sakit və güclü.<br>Yeni başlayanlar.</div>
+      <div class="speed-bar"><div class="speed-fill"></div></div>
+      <div class="speed-label">SÜRƏTİ ██░░░</div>
+    </div>
+    <div class="karakter-kart aymin" onclick="oyunuBaslat('AYMIN','#00cfff',190)">
+      <span class="karakter-emoji">🐉</span>
+      <div class="karakter-ad">AYMIN</div>
+      <div class="karakter-info">Sürətli və zirək.<br>Orta səviyyə.</div>
+      <div class="speed-bar"><div class="speed-fill"></div></div>
+      <div class="speed-label">SÜRƏTİ ████░</div>
+    </div>
+    <div class="karakter-kart jawhead" onclick="oyunuBaslat('JAWHEAD','#ff4466',145)">
+      <span class="karakter-emoji">💀</span>
+      <div class="karakter-ad">JAWHEAD</div>
+      <div class="karakter-info">Çılğın sürət.<br>Yalnız ustalar!</div>
+      <div class="speed-bar"><div class="speed-fill"></div></div>
+      <div class="speed-label">SÜRƏTİ █████</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== OYUN ========== -->
+<div id="oyun-ekrani">
+  <div class="oyun-header">
+    <div class="oyuncu-adi" id="oyuncu-adi-goster"></div>
+    <div class="xal-goster" id="xal-goster">XAL: 0</div>
+  </div>
+
+  <div class="level-bar-wrap">
+    <div class="level-badge" id="level-badge">SEV 1</div>
+    <div class="level-progress-bg">
+      <div class="level-progress-fill" id="level-fill"></div>
+    </div>
+    <div class="level-xal-text" id="level-xal-text">0 / 50</div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas-bg" width="440" height="440"></canvas>
+    <canvas id="canvas"    width="440" height="440"></canvas>
+  </div>
+
+  <div class="kontrol-ipucu">← → ↑ ↓ · ox düymələri</div>
+
+  <div class="mobil-kontrol">
+    <div class="mobil-row"><div class="mobil-btn" id="btn-yukari">▲</div></div>
+    <div class="mobil-row">
+      <div class="mobil-btn" id="btn-sol">◀</div>
+      <div class="mobil-btn" id="btn-asagi">▼</div>
+      <div class="mobil-btn" id="btn-sag">▶</div>
+    </div>
+  </div>
+</div>
+
+<!-- LEVEL UP -->
+<div id="level-up-overlay">
+  <div class="level-up-text" id="level-up-text"></div>
+</div>
+
+<!-- OYUN BİTDİ -->
+<div id="oyun-bitti">
+  <h2>OYUN BİTDİ</h2>
+  <div class="son-xal" id="son-xal-goster"></div>
+  <div class="final-level" id="final-level-goster"></div>
+  <button class="btn btn-yeniden" onclick="yenidenBaslat()">YENİDƏN OYNA</button>
+  <button class="btn btn-menu" onclick="menuneQayit()">MENÜYƏ QAYIT</button>
+</div>
+
+<script>
+// ==================== XƏRİTƏLƏR ====================
+const XERITELER = {
+  mese: {
+    ad: 'MEŞƏ',
+    bodyCls: 'map-mese',
+    dekor: ['🌲','🌿','🍃','🌱','🍀','🌾','🦋','🐦'],
+    yemlər: ['🍎','🍓','🍇','🍒','🌰','🍄','🍏','🫐'],
+    canvasBg(ctx, w, h) {
+      ctx.fillStyle = '#0d200d';
+      ctx.fillRect(0,0,w,h);
+      // dağınıq ağac
+      const items = ['🌿','🌱','🍃'];
+      ctx.font = '16px serif';
+      for(let i=0;i<20;i++){
+        ctx.globalAlpha = 0.06 + Math.random()*0.05;
+        ctx.fillText(items[i%items.length],
+          (Math.random()*0.95+0.02)*w,
+          (Math.random()*0.95+0.02)*h);
+      }
+      ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(40,120,40,0.09)';
+      ctx.lineWidth=0.5;
+      for(let i=0;i<=w/20;i++){
+        ctx.beginPath();ctx.moveTo(i*20,0);ctx.lineTo(i*20,h);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(0,i*20);ctx.lineTo(w,i*20);ctx.stroke();
+      }
+    }
+  },
+  gece: {
+    ad: 'GECƏ BAĞÇASI',
+    bodyCls: 'map-gece',
+    dekor: ['⭐','✨','🌙','💫','🌟','🔮','🦋','🌸'],
+    yemlər: ['💎','⭐','🔮','💜','🌙','✨','🫧','🌟'],
+    canvasBg(ctx, w, h) {
+      const g = ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0,'#080820'); g.addColorStop(1,'#030310');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#fff';
+      for(let i=0;i<80;i++){
+        ctx.globalAlpha = Math.random()*0.6+0.05;
+        const r = Math.random()*1.3;
+        ctx.beginPath();
+        ctx.arc(Math.random()*w, Math.random()*h, r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(80,40,160,0.07)';
+      ctx.lineWidth=0.5;
+      for(let i=0;i<=w/20;i++){
+        ctx.beginPath();ctx.moveTo(i*20,0);ctx.lineTo(i*20,h);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(0,i*20);ctx.lineTo(w,i*20);ctx.stroke();
+      }
+    }
+  },
+  okean: {
+    ad: 'OKEAN DİBİ',
+    bodyCls: 'map-okean',
+    dekor: ['🐠','🐟','🐡','🦑','🪸','🌊','🐙','🫧','🦈'],
+    yemlər: ['🐠','🦐','🦀','🪸','🐚','💙','🫧','🐡'],
+    canvasBg(ctx, w, h) {
+      const g = ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0,'#001c35'); g.addColorStop(1,'#00050f');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      // köpük
+      ctx.fillStyle='rgba(0,180,220,0.2)';
+      for(let i=0;i<40;i++){
+        ctx.globalAlpha = Math.random()*0.25+0.05;
+        const r = Math.random()*3+0.5;
+        ctx.beginPath();
+        ctx.arc(Math.random()*w, Math.random()*h, r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(0,140,200,0.07)';
+      ctx.lineWidth=0.5;
+      for(let i=0;i<=w/20;i++){
+        ctx.beginPath();ctx.moveTo(i*20,0);ctx.lineTo(i*20,h);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(0,i*20);ctx.lineTo(w,i*20);ctx.stroke();
+      }
+    }
+  }
+};
+
+// ==================== DEĞİŞKƏNLƏR ====================
+const canvas   = document.getElementById('canvas');
+const ctx      = canvas.getContext('2d');
+const canvasBg = document.getElementById('canvas-bg');
+const ctxBg    = canvasBg.getContext('2d');
+const hucre    = 20;
+const satige   = canvas.width / hucre;
+
+const LEVEL_XAL     = 50;
+const SURETI_AZALMA = 12;
+const MIN_INTERVAL  = 55;
+
+let seciliXerite = 'mese';
+let oyuncu = { ad:'', reng:'', sureti:240 };
+let ilan, istiqamet, novbetiIstiqamet, yem;
+let xal, level, levelXal;
+let interval, oyunDavam;
+let touchBaslangic = null;
+let dekorTimer = null;
+let dekorSay = 0;
+
+// ==================== XƏRİTƏ SEÇİMİ ====================
+function xeriteSecim(id, el) {
+  seciliXerite = id;
+  document.querySelectorAll('.xerite-kart').forEach(k => k.classList.remove('secili'));
+  el.classList.add('secili');
+  document.body.className = XERITELER[id].bodyCls;
+  dekorBaslat(id);
+}
+
+function dekorBaslat(mapId) {
+  const layer = document.getElementById('deco-layer');
+  layer.innerHTML = '';
+  dekorSay = 0;
+  if(dekorTimer) clearInterval(dekorTimer);
+
+  const emojiler = XERITELER[mapId].dekor;
+
+  function yeniDekor() {
+    if(dekorSay >= 14) return;
+    const el = document.createElement('div');
+    el.className = 'deco-item';
+    el.textContent = emojiler[Math.floor(Math.random()*emojiler.length)];
+    el.style.left = (Math.random()*96 + 2) + 'vw';
+    const sure = 14 + Math.random()*18;
+    el.style.animationDuration = sure + 's';
+    el.style.fontSize = (1 + Math.random()*1.2) + 'rem';
+    layer.appendChild(el);
+    dekorSay++;
+    setTimeout(() => { el.remove(); dekorSay--; }, sure * 1000);
+  }
+
+  for(let i=0;i<7;i++) setTimeout(yeniDekor, i*600);
+  dekorTimer = setInterval(yeniDekor, 2800);
+}
+
+// İlk yüklənmə
+dekorBaslat('mese');
+
+// ==================== OYUN BAŞLAT ====================
+function oyunuBaslat(ad, reng, sure) {
+  oyuncu = { ad, reng, sureti: sure };
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('oyun-ekrani').style.display = 'flex';
+  document.getElementById('oyuncu-adi-goster').style.color = reng;
+  document.getElementById('oyuncu-adi-goster').textContent = ad;
+  document.getElementById('xal-goster').style.color = reng;
+  document.getElementById('level-fill').style.background = reng;
+  document.getElementById('level-badge').style.color = reng;
+  document.getElementById('level-badge').style.borderColor = reng;
+
+  XERITELER[seciliXerite].canvasBg(ctxBg, canvasBg.width, canvasBg.height);
+  baslat();
+}
+
+function baslat() {
+  ilan = [{x:10,y:10}];
+  istiqamet = {x:1,y:0};
+  novbetiIstiqamet = {x:1,y:0};
+  xal = 0; level = 1; levelXal = 0;
+  oyunDavam = true;
+  yem = yemYarat();
+  xalYenile(); levelYenile();
+  if(interval) clearInterval(interval);
+  interval = setInterval(yenile, cariInterval());
+}
+
+function yemYarat() {
+  let pos;
+  do {
+    pos = { x: Math.floor(Math.random()*satige), y: Math.floor(Math.random()*satige) };
+  } while(ilan.some(h => h.x===pos.x && h.y===pos.y));
+  return pos;
+}
+
+function cariInterval() {
+  return Math.max(oyuncu.sureti - (level-1)*SURETI_AZALMA, MIN_INTERVAL);
+}
+
+function levelYenile() {
+  const pct = Math.min((levelXal/LEVEL_XAL)*100, 100);
+  document.getElementById('level-fill').style.width = pct + '%';
+  document.getElementById('level-badge').textContent = 'SEV ' + level;
+  document.getElementById('level-xal-text').textContent = levelXal + ' / ' + LEVEL_XAL;
+}
+
+function levelAtla() {
+  level++; levelXal = 0; levelYenile();
+  const overlay = document.getElementById('level-up-overlay');
+  const text    = document.getElementById('level-up-text');
+  text.textContent = '🔥 SEVİYYƏ ' + level + '!';
+  text.style.color = oyuncu.reng;
+  text.style.textShadow = '0 0 30px ' + oyuncu.reng;
+  overlay.style.display = 'flex';
+  text.style.animation = 'none';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    text.style.animation = 'levelUpAnim 1.5s ease forwards';
+  }));
+  setTimeout(() => { overlay.style.display = 'none'; }, 1500);
+  clearInterval(interval);
+  interval = setInterval(yenile, cariInterval());
+}
+
+// ==================== OYUN CİKLİ ====================
+function yenile() {
+  if(!oyunDavam) return;
+  istiqamet = novbetiIstiqamet;
+  const yeniBas = {
+    x: ilan[0].x + istiqamet.x,
+    y: ilan[0].y + istiqamet.y
+  };
+
+  if(yeniBas.x<0||yeniBas.x>=satige||yeniBas.y<0||yeniBas.y>=satige){ oyunBitti(); return; }
+  if(ilan.some(h=>h.x===yeniBas.x&&h.y===yeniBas.y)){ oyunBitti(); return; }
+
+  ilan.unshift(yeniBas);
+
+  if(yeniBas.x===yem.x && yeniBas.y===yem.y){
+    xal += 10; levelXal += 10;
+    xalYenile();
+    if(levelXal >= LEVEL_XAL) levelAtla();
+    else levelYenile();
+    yem = yemYarat();
+  } else {
+    ilan.pop();
+  }
+
+  ciz();
+}
+
+function ciz() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const xer = XERITELER[seciliXerite];
+  const yemEmoji = xer.yemlər[Math.min(level-1, xer.yemlər.length-1)];
+
+  // Yem
+  ctx.font = `${hucre-2}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 12;
+  ctx.fillText(yemEmoji, yem.x*hucre+hucre/2, yem.y*hucre+hucre/2);
+  ctx.shadowBlur = 0;
+
+  // İlan
+  ilan.forEach((hisse, i) => {
+    const alpha = i===0 ? 1 : Math.max(0.3, 1-i*0.04);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = oyuncu.reng;
+    ctx.shadowColor = oyuncu.reng;
+    ctx.shadowBlur = i===0 ? 15 : 5;
+
+    const pad = i===0 ? 1 : 2;
+    const rad = i===0 ? 6 : 4;
+    const x = hisse.x*hucre + pad;
+    const y = hisse.y*hucre + pad;
+    const w = hucre - pad*2;
+
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, w, rad);
+    ctx.fill();
+
+    if(i===0){
+      ctx.fillStyle = '#000';
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      const gx = istiqamet.x===1?x+w-5:istiqamet.x===-1?x+3:x+w/2-2;
+      const gy = istiqamet.y===1?y+w-5:istiqamet.y===-1?y+3:y+w/2-2;
+      ctx.beginPath(); ctx.arc(gx,gy,2,0,Math.PI*2); ctx.fill();
+    }
+  });
+
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur  = 0;
+}
+
+function xalYenile() {
+  document.getElementById('xal-goster').textContent = 'XAL: ' + xal;
+}
+
+function oyunBitti() {
+  oyunDavam = false;
+  clearInterval(interval);
+  document.getElementById('son-xal-goster').textContent = oyuncu.ad + ' · ' + xal + ' XAL';
+  document.getElementById('son-xal-goster').style.color = oyuncu.reng;
+  document.getElementById('final-level-goster').textContent =
+    'SEVİYYƏ ' + level + ' · ' + XERITELER[seciliXerite].ad;
+  document.getElementById('oyun-bitti').style.display = 'flex';
+}
+
+function yenidenBaslat() {
+  document.getElementById('oyun-bitti').style.display = 'none';
+  XERITELER[seciliXerite].canvasBg(ctxBg, canvasBg.width, canvasBg.height);
+  baslat();
+}
+
+function menuneQayit() {
+  document.getElementById('oyun-bitti').style.display = 'none';
+  document.getElementById('oyun-ekrani').style.display = 'none';
+  document.getElementById('menu').style.display = 'block';
+  clearInterval(interval);
+}
+
+// ==================== İDARƏ ====================
+document.addEventListener('keydown', function(e) {
+  if(!oyunDavam) return;
+  const c = istiqamet;
+  if(e.key==='ArrowUp'    && c.y===0) novbetiIstiqamet={x:0,y:-1};
+  if(e.key==='ArrowDown'  && c.y===0) novbetiIstiqamet={x:0,y:1};
+  if(e.key==='ArrowLeft'  && c.x===0) novbetiIstiqamet={x:-1,y:0};
+  if(e.key==='ArrowRight' && c.x===0) novbetiIstiqamet={x:1,y:0};
+  e.preventDefault();
+});
+
+function mobilYon(yon) {
+  if(!oyunDavam) return;
+  const c = istiqamet;
+  if(yon==='yukari'&&c.y===0) novbetiIstiqamet={x:0,y:-1};
+  if(yon==='asagi' &&c.y===0) novbetiIstiqamet={x:0,y:1};
+  if(yon==='sol'   &&c.x===0) novbetiIstiqamet={x:-1,y:0};
+  if(yon==='sag'   &&c.x===0) novbetiIstiqamet={x:1,y:0};
+}
+
+document.getElementById('btn-yukari').addEventListener('click',()=>mobilYon('yukari'));
+document.getElementById('btn-asagi').addEventListener('click', ()=>mobilYon('asagi'));
+document.getElementById('btn-sol').addEventListener('click',   ()=>mobilYon('sol'));
+document.getElementById('btn-sag').addEventListener('click',   ()=>mobilYon('sag'));
+
+canvas.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  touchBaslangic = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+},{passive:false});
+
+canvas.addEventListener('touchend', e=>{
+  e.preventDefault();
+  if(!touchBaslangic||!oyunDavam) return;
+  const dx = e.changedTouches[0].clientX - touchBaslangic.x;
+  const dy = e.changedTouches[0].clientY - touchBaslangic.y;
+  if(Math.abs(dx)<10&&Math.abs(dy)<10) return;
+  if(Math.abs(dx)>Math.abs(dy)) mobilYon(dx>0?'sag':'sol');
+  else mobilYon(dy>0?'asagi':'yukari');
+  touchBaslangic = null;
+},{passive:false});
+</script>
+</body>
+</html>
